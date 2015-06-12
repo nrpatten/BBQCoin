@@ -2285,112 +2285,26 @@ Value getwork(const Array& params, bool fHelp)
 }
 
 
-Value getmemorypool(const Array& params, bool fHelp)
-{
-    if (fHelp || params.size() > 1)
-        throw runtime_error(
-            "getmemorypool [data]\n"
-            "If [data] is not specified, returns data needed to construct a block to work on:\n"
-            "  \"version\" : block version\n"
-            "  \"previousblockhash\" : hash of current highest block\n"
-            "  \"transactions\" : contents of non-coinbase transactions that should be included in the next block\n"
-            "  \"coinbasevalue\" : maximum allowable input to coinbase transaction, including the generation award and transaction fees\n"
-            "  \"coinbaseflags\" : data that should be included in coinbase so support for new features can be judged\n"
-            "  \"time\" : timestamp appropriate for next block\n"
-            "  \"mintime\" : minimum timestamp appropriate for next block\n"
-            "  \"curtime\" : current timestamp\n"
-            "  \"bits\" : compressed target of next block\n"
-            "If [data] is specified, tries to solve the block and returns true if it was successful.");
-
-    if (params.size() == 0)
-    {
-        if (vNodes.empty())
-            throw JSONRPCError(-9, "BBQCoin is not connected!");
-
-        if (IsInitialBlockDownload())
-            throw JSONRPCError(-10, "BBQCoin is downloading blocks...");
-
-        static CReserveKey reservekey(pwalletMain);
-
-        // Update block
-        static unsigned int nTransactionsUpdatedLast;
-        static CBlockIndex* pindexPrev;
-        static int64 nStart;
-        static CBlock* pblock;
-        if (pindexPrev != pindexBest ||
-            (nTransactionsUpdated != nTransactionsUpdatedLast && GetTime() - nStart > 5))
-        {
-            nTransactionsUpdatedLast = nTransactionsUpdated;
-            pindexPrev = pindexBest;
-            nStart = GetTime();
-
-            // Create new block
-            if(pblock)
-                delete pblock;
-            pblock = CreateNewBlock(reservekey);
-            if (!pblock)
-                throw JSONRPCError(-7, "Out of memory");
-        }
-
-        // Update nTime
-        pblock->UpdateTime(pindexPrev);
-        pblock->nNonce = 0;
-
-        Array transactions;
-        BOOST_FOREACH(CTransaction tx, pblock->vtx) {
-            if(tx.IsCoinBase())
-                continue;
-
-            CDataStream ssTx(SER_NETWORK, PROTOCOL_VERSION);
-            ssTx << tx;
-
-            transactions.push_back(HexStr(ssTx.begin(), ssTx.end()));
-        }
-
-        Object result;
-        result.push_back(Pair("version", pblock->nVersion));
-        result.push_back(Pair("previousblockhash", pblock->hashPrevBlock.GetHex()));
-        result.push_back(Pair("transactions", transactions));
-        result.push_back(Pair("coinbasevalue", (int64_t)pblock->vtx[0].vout[0].nValue));
-        result.push_back(Pair("coinbaseflags", HexStr(COINBASE_FLAGS.begin(), COINBASE_FLAGS.end())));
-        result.push_back(Pair("time", (int64_t)pblock->nTime));
-        result.push_back(Pair("mintime", (int64_t)pindexPrev->GetMedianTimePast()+1));
-        result.push_back(Pair("curtime", (int64_t)GetAdjustedTime()));
-        result.push_back(Pair("bits", HexBits(pblock->nBits)));
-
-        return result;
-    }
-    else
-    {
-        // Parse parameters
-        CDataStream ssBlock(ParseHex(params[0].get_str()), SER_NETWORK, PROTOCOL_VERSION);
-        CBlock pblock;
-        ssBlock >> pblock;
-
-        return ProcessBlock(NULL, &pblock);
-    }
-}
-
 Value getblocktemplate(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() != 1)
         throw runtime_error(
             "getblocktemplate [params]\n"
             "If [params] does not contain a \"data\" key, returns data needed to construct a block to work on:\n"
-            " \"version\" : block version\n"
-            " \"previousblockhash\" : hash of current highest block\n"
-            " \"transactions\" : contents of non-coinbase transactions that should be included in the next block\n"
-            " \"coinbaseaux\" : data that should be included in coinbase\n"
-            " \"coinbasevalue\" : maximum allowable input to coinbase transaction, including the generation award and transaction fees\n"
-            " \"target\" : hash target\n"
-            " \"mintime\" : minimum timestamp appropriate for next block\n"
-            " \"curtime\" : current timestamp\n"
-            " \"mutable\" : list of ways the block template may be changed\n"
-            " \"noncerange\" : range of valid nonces\n"
-            " \"sigoplimit\" : limit of sigops in blocks\n"
-            " \"sizelimit\" : limit of block size\n"
-            " \"bits\" : compressed target of next block\n"
-            " \"height\" : height of the next block\n"
+            "  \"version\" : block version\n"
+            "  \"previousblockhash\" : hash of current highest block\n"
+            "  \"transactions\" : contents of non-coinbase transactions that should be included in the next block\n"
+            "  \"coinbaseaux\" : data that should be included in coinbase\n"
+            "  \"coinbasevalue\" : maximum allowable input to coinbase transaction, including the generation award and transaction fees\n"
+            "  \"target\" : hash target\n"
+            "  \"mintime\" : minimum timestamp appropriate for next block\n"
+            "  \"curtime\" : current timestamp\n"
+            "  \"mutable\" : list of ways the block template may be changed\n"
+            "  \"noncerange\" : range of valid nonces\n"
+            "  \"sigoplimit\" : limit of sigops in blocks\n"
+            "  \"sizelimit\" : limit of block size\n"
+            "  \"bits\" : compressed target of next block\n"
+            "  \"height\" : height of the next block\n"
             "If [params] does contain a \"data\" key, tries to solve the block and returns null if it was successful (and \"rejected\" if not)\n"
             "See https://en.bitcoin.it/wiki/BIP_0022 for full specification.");
 
@@ -2530,7 +2444,6 @@ Value getblocktemplate(const Array& params, bool fHelp)
 
     throw JSONRPCError(-8, "Invalid mode");
 }
-
 Value submitblock(const Array& params, bool fHelp)
 {
     if (fHelp || params.size() < 1 || params.size() > 2)
@@ -2710,7 +2623,6 @@ static const CRPCCommand vRPCCommands[] =
     { "listaccounts",           &listaccounts,           false },
     { "settxfee",               &settxfee,               false },
     { "setmininput",            &setmininput,            false },
-    { "getmemorypool",          &getmemorypool,          true },
     { "getblocktemplate",       &getblocktemplate,       true },
     { "submitblock",            &submitblock,            false },
     { "listsinceblock",         &listsinceblock,         false },
@@ -2924,7 +2836,7 @@ string JSONRPCRequest(const string& strMethod, const Array& params, const Value&
     return write_string(Value(request), false) + "\n";
 }
 
-string JSONRPCReply(const Value& result, const Value& error, const Value& id)
+Object JSONRPCReplyObj(const Value& result, const Value& error, const Value& id)
 {
     Object reply;
     if (error.type() != null_type)
@@ -2933,6 +2845,12 @@ string JSONRPCReply(const Value& result, const Value& error, const Value& id)
         reply.push_back(Pair("result", result));
     reply.push_back(Pair("error", error));
     reply.push_back(Pair("id", id));
+    return reply;
+}
+
+string JSONRPCReply(const Value& result, const Value& error, const Value& id)
+{
+    Object reply = JSONRPCReplyObj(result, error, id);
     return write_string(Value(reply), false) + "\n";
 }
 
@@ -3277,6 +3195,80 @@ void ThreadRPCServer2(void* parg)
     StopRequests();
 }
 
+class JSONRequest
+{
+public:
+    Value id;
+    string strMethod;
+    Array params;
+
+    JSONRequest() { id = Value::null; }
+    void parse(const Value& valRequest);
+};
+
+void JSONRequest::parse(const Value& valRequest)
+{
+    // Parse request
+    if (valRequest.type() != obj_type)
+        throw JSONRPCError(-32600, "Invalid Request object");
+    const Object& request = valRequest.get_obj();
+
+    // Parse id now so errors from here on will have the id
+    id = find_value(request, "id");
+
+    // Parse method
+    Value valMethod = find_value(request, "method");
+    if (valMethod.type() == null_type)
+        throw JSONRPCError(-32600, "Missing method");
+    if (valMethod.type() != str_type)
+        throw JSONRPCError(-32600, "Method must be a string");
+    strMethod = valMethod.get_str();
+    if (strMethod != "getwork" && strMethod != "getmemorypool")
+        printf("ThreadRPCServer method=%s\n", strMethod.c_str());
+
+    // Parse params
+    Value valParams = find_value(request, "params");
+    if (valParams.type() == array_type)
+        params = valParams.get_array();
+    else if (valParams.type() == null_type)
+        params = Array();
+    else
+        throw JSONRPCError(-32600, "Params must be an array");
+}
+
+static Object JSONRPCExecOne(const Value& req)
+{
+    Object rpc_result;
+
+    JSONRequest jreq;
+    try {
+        jreq.parse(req);
+
+        Value result = tableRPC.execute(jreq.strMethod, jreq.params);
+        rpc_result = JSONRPCReplyObj(result, Value::null, jreq.id);
+    }
+    catch (Object& objError)
+    {
+        rpc_result = JSONRPCReplyObj(Value::null, objError, jreq.id);
+    }
+    catch (std::exception& e)
+    {
+        rpc_result = JSONRPCReplyObj(Value::null,
+                                     JSONRPCError(-32700, e.what()), jreq.id);
+    }
+
+    return rpc_result;
+}
+
+static string JSONRPCExecBatch(const Array& vReq)
+{
+    Array ret;
+    for (unsigned int reqIdx = 0; reqIdx < vReq.size(); reqIdx++)
+        ret.push_back(JSONRPCExecOne(vReq[reqIdx]));
+
+    return write_string(Value(ret), false) + "\n";
+}
+
 static CCriticalSection cs_THREAD_RPCHANDLER;
 
 void ThreadRPCServer3(void* parg)
@@ -3326,52 +3318,41 @@ void ThreadRPCServer3(void* parg)
         if (mapHeaders["connection"] == "close")
             fRun = false;
 
-        Value id = Value::null;
+        JSONRequest jreq;
         try
         {
             // Parse request
             Value valRequest;
-            if (!read_string(strRequest, valRequest) || valRequest.type() != obj_type)
+            if (!read_string(strRequest, valRequest))
                 throw JSONRPCError(-32700, "Parse error");
-            const Object& request = valRequest.get_obj();
 
-            // Parse id now so errors from here on will have the id
-            id = find_value(request, "id");
+            string strReply;
 
-            // Parse method
-            Value valMethod = find_value(request, "method");
-            if (valMethod.type() == null_type)
-                throw JSONRPCError(-32600, "Missing method");
-            if (valMethod.type() != str_type)
-                throw JSONRPCError(-32600, "Method must be a string");
-            string strMethod = valMethod.get_str();
-            if (strMethod != "getwork" && strMethod != "getmemorypool")
-                printf("ThreadRPCServer method=%s\n", strMethod.c_str());
+            // singleton request
+            if (valRequest.type() == obj_type) {
+                jreq.parse(valRequest);
 
-            // Parse params
-            Value valParams = find_value(request, "params");
-            Array params;
-            if (valParams.type() == array_type)
-                params = valParams.get_array();
-            else if (valParams.type() == null_type)
-                params = Array();
+                Value result = tableRPC.execute(jreq.strMethod, jreq.params);
+
+                // Send reply
+                strReply = JSONRPCReply(result, Value::null, jreq.id);
+
+            // array of requests
+            } else if (valRequest.type() == array_type)
+                strReply = JSONRPCExecBatch(valRequest.get_array());
             else
-                throw JSONRPCError(-32600, "Params must be an array");
-
-            Value result = tableRPC.execute(strMethod, params);
-
-            // Send reply
-            string strReply = JSONRPCReply(result, Value::null, id);
+                throw JSONRPCError(-32700, "Top-level object parse error");
+                
             conn->stream() << HTTPReply(200, strReply, fRun) << std::flush;
         }
         catch (Object& objError)
         {
-            ErrorReply(conn->stream(), objError, id);
+            ErrorReply(conn->stream(), objError, jreq.id);
             break;
         }
         catch (std::exception& e)
         {
-            ErrorReply(conn->stream(), JSONRPCError(-32700, e.what()), id);
+            ErrorReply(conn->stream(), JSONRPCError(-32700, e.what()), jreq.id);
             break;
         }
     }
@@ -3519,6 +3500,7 @@ Array RPCConvertValues(const std::string &strMethod, const std::vector<std::stri
     if (strMethod == "listtransactions"       && n > 2) ConvertTo<boost::int64_t>(params[2]);
     if (strMethod == "listaccounts"           && n > 0) ConvertTo<boost::int64_t>(params[0]);
     if (strMethod == "walletpassphrase"       && n > 1) ConvertTo<boost::int64_t>(params[1]);
+    if (strMethod == "getblocktemplate"       && n > 0) ConvertTo<Object>(params[0]);
     if (strMethod == "listsinceblock"         && n > 1) ConvertTo<boost::int64_t>(params[1]);
     if (strMethod == "sendmany"               && n > 1) ConvertTo<Object>(params[1]);
     if (strMethod == "sendmany"               && n > 2) ConvertTo<boost::int64_t>(params[2]);
